@@ -6,10 +6,12 @@
 body{
     font-family: Arial; 
     text-align:center; 
-    background: white; 
-    color: black;      
+    background: white; /* Changed background to white */
+    color: black;      /* Text color black for readability */
 }
-h1,h2{ color:black; }
+h1,h2{ 
+    color:black; 
+}
 .container{ margin-top:20px; }
 video, canvas{ border:3px solid #333; border-radius:10px; }
 textarea{ padding:10px; font-size:16px; width:300px; height:100px; margin:5px; }
@@ -30,9 +32,11 @@ button:hover{
 .start{ background:#2980b9; color:white; }
 .mark{ background:#27ae60; color:white; }
 .add{ background:#f39c12; color:white; }
+
 table{ margin:auto; margin-top:20px; border-collapse:collapse; }
 th,td{ padding:10px 20px; border:1px solid #ccc; }
-th{ background:#2980b9; color:white; } 
+th{ background:#2980b9; color:white; } /* Table header adjusted for white background */
+input, textarea{ cursor:text; }
 img{ width:50px; height:50px; border-radius:5px; }
 </style>
 </head>
@@ -40,16 +44,20 @@ img{ width:50px; height:50px; border-radius:5px; }
 
 <h1>Face Recognition Attendance System</h1>
 
+<!-- Step 1: Upload Known Students -->
 <h2>Upload Known Students</h2>
 <textarea id="knownList" placeholder="Enter known student names, one per line"></textarea><br>
 <button class="add" onclick="addKnownBulk()">Add Known Students</button>
+
 <p id="msg"></p>
 
+<!-- Step 2: Start Camera -->
 <div class="container">
 <video id="video" width="400" height="300" autoplay></video><br>
 <button class="start" onclick="startCamera()">Start Camera</button>
 </div>
 
+<!-- Step 3: Mark Attendance -->
 <h2>Mark Attendance</h2>
 <input type="text" id="studentName" placeholder="Enter student name to mark">
 <button class="mark" onclick="markSingleAttendance()">Mark Attendance</button>
@@ -63,12 +71,13 @@ img{ width:50px; height:50px; border-radius:5px; }
 <canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
 
 <script>
+// Array for known students
 let knownStudents = [];
 let video = document.getElementById("video");
 let canvas = document.getElementById("canvas");
 let context = canvas.getContext("2d");
 
-// Add bulk known students
+// 1️⃣ Add bulk known students
 function addKnownBulk(){
     const text = document.getElementById("knownList").value.trim();
     if(!text){ document.getElementById("msg").innerText="Enter names first!"; return;}
@@ -78,20 +87,20 @@ function addKnownBulk(){
     document.getElementById("knownList").value = "";
 }
 
-// Start camera
+// 2️⃣ Start camera
 function startCamera(){
     navigator.mediaDevices.getUserMedia({ video:true })
     .then(stream => { video.srcObject = stream })
     .catch(err => alert("Camera not accessible."));
 }
 
-// Capture photo
+// 3️⃣ Capture photo
 function capturePhoto(){
     context.drawImage(video,0,0,canvas.width,canvas.height);
     return canvas.toDataURL("image/png");
 }
 
-// Mark attendance
+// 4️⃣ Mark attendance
 function markSingleAttendance(){
     const name = document.getElementById("studentName").value.trim();
     if(!name){ document.getElementById("msg").innerText="Enter a name!"; return; }
@@ -101,21 +110,21 @@ function markSingleAttendance(){
     let date = now.toLocaleDateString();
     let time = now.toLocaleTimeString();
 
-    let photoData = capturePhoto();
+    let photoData = capturePhoto(); // Capture photo from camera
 
     let row = table.insertRow();
     let cellPhoto = row.insertCell(0);
-    cellPhoto.innerHTML = `<img src="${photoData}" alt="Photo">`;
+    cellPhoto.innerHTML = <img src="${photoData}" alt="Photo">;
     row.insertCell(1).innerText = name;
     row.insertCell(2).innerText = date;
     row.insertCell(3).innerText = time;
 
     if(knownStudents.includes(name)){
-        row.style.color = "green";
-        document.getElementById("msg").innerText = name + " marked as Known ✅";
+        row.style.color = "green"; // Known = green
+        document.getElementById("msg").innerText = name + " marked as Known";
     } else {
-        row.style.color = "red";
-        document.getElementById("msg").innerText = name + " marked as Unknown ❌";
+        row.style.color = "red"; // Unknown = red
+        document.getElementById("msg").innerText = name + " marked as Unknown";
     }
 
     document.getElementById("studentName").value = "";
