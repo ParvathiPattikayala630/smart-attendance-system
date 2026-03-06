@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Face Recognition Attendance</title>
+<style>
+body{
+    font-family: Arial; 
+    text-align:center; 
+    background: white; 
+    color: black;      
+}
+h1,h2{ color:black; }
+.container{ margin-top:20px; }
+video, canvas{ border:3px solid #333; border-radius:10px; }
+textarea{ padding:10px; font-size:16px; width:300px; height:100px; margin:5px; }
+input{ padding:10px; font-size:16px; width:300px; margin:5px; }
+button{
+    padding:10px 20px; 
+    margin:10px; 
+    font-size:16px; 
+    border:none; 
+    border-radius:5px; 
+    cursor:pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+button:hover{
+    transform: scale(1.1); 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+}
+.start{ background:#2980b9; color:white; }
+.mark{ background:#27ae60; color:white; }
+.add{ background:#f39c12; color:white; }
+table{ margin:auto; margin-top:20px; border-collapse:collapse; }
+th,td{ padding:10px 20px; border:1px solid #ccc; }
+th{ background:#2980b9; color:white; } 
+img{ width:50px; height:50px; border-radius:5px; }
+</style>
+</head>
+<body>
+
+<h1>Face Recognition Attendance System</h1>
+
+<h2>Upload Known Students</h2>
+<textarea id="knownList" placeholder="Enter known student names, one per line"></textarea><br>
+<button class="add" onclick="addKnownBulk()">Add Known Students</button>
+<p id="msg"></p>
+
+<div class="container">
+<video id="video" width="400" height="300" autoplay></video><br>
+<button class="start" onclick="startCamera()">Start Camera</button>
+</div>
+
+<h2>Mark Attendance</h2>
+<input type="text" id="studentName" placeholder="Enter student name to mark">
+<button class="mark" onclick="markSingleAttendance()">Mark Attendance</button>
+
+<h2>Attendance Record</h2>
+<table>
+<tr><th>Photo</th><th>Name</th><th>Date</th><th>Time</th></tr>
+<tbody id="attendanceTable"></tbody>
+</table>
+
+<canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
+
+<script>
+let knownStudents = [];
+let video = document.getElementById("video");
+let canvas = document.getElementById("canvas");
+let context = canvas.getContext("2d");
+
+// Add bulk known students
+function addKnownBulk(){
+    const text = document.getElementById("knownList").value.trim();
+    if(!text){ document.getElementById("msg").innerText="Enter names first!"; return;}
+    const names = text.split(/\r?\n/).map(n => n.trim()).filter(n => n);
+    knownStudents.push(...names);
+    document.getElementById("msg").innerText = names.length + " known students added";
+    document.getElementById("knownList").value = "";
+}
+
+// Start camera
+function startCamera(){
+    navigator.mediaDevices.getUserMedia({ video:true })
+    .then(stream => { video.srcObject = stream })
+    .catch(err => alert("Camera not accessible."));
+}
+
+// Capture photo
+function capturePhoto(){
+    context.drawImage(video,0,0,canvas.width,canvas.height);
+    return canvas.toDataURL("image/png");
+}
+
+// Mark attendance
+function markSingleAttendance(){
+    const name = document.getElementById("studentName").value.trim();
+    if(!name){ document.getElementById("msg").innerText="Enter a name!"; return; }
+
+    let table = document.getElementById("attendanceTable");
+    let now = new Date();
+    let date = now.toLocaleDateString();
+    let time = now.toLocaleTimeString();
+
+    let photoData = capturePhoto();
+
+    let row = table.insertRow();
+    let cellPhoto = row.insertCell(0);
+    cellPhoto.innerHTML = `<img src="${photoData}" alt="Photo">`;
+    row.insertCell(1).innerText = name;
+    row.insertCell(2).innerText = date;
+    row.insertCell(3).innerText = time;
+
+    if(knownStudents.includes(name)){
+        row.style.color = "green";
+        document.getElementById("msg").innerText = name + " marked as Known ✅";
+    } else {
+        row.style.color = "red";
+        document.getElementById("msg").innerText = name + " marked as Unknown ❌";
+    }
+
+    document.getElementById("studentName").value = "";
+}
+</script>
+
+</body>
+</html>
