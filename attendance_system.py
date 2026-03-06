@@ -1,25 +1,29 @@
 import cv2
+import os
 import numpy as np
-import pickle
-import pandas as pd
-from datetime import datetime
+from PIL import Image
+import time
 
-# Load trained model
-with open("face_model.pkl", "rb") as f:
-    model = pickle.load(f)
+# --------------------------
+# Dataset folder
+dataset_path = "dataset"
 
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-cap = cv2.VideoCapture(0)
-
-attendance = {}
-dataset_ids = []  # List of all student IDs
-for file in os.listdir("dataset"):
+# Load dataset images
+students = {}
+for file in os.listdir(dataset_path):
     if file.endswith(".jpg"):
-        student_id = file.split(".")[1]
-        if student_id not in dataset_ids:
-            dataset_ids.append(student_id)
+        student_id = os.path.splitext(file)[0]
+        img = Image.open(os.path.join(dataset_path, file)).convert("L").resize((100,100))
+        students[student_id] = np.array(img)
 
-print("Attendance system started. Press 'q' to exit.")
+print("Dataset loaded:", list(students.keys()))
+
+# --------------------------
+# Open webcam
+cap = cv2.VideoCapture(0)
+print("Webcam started. Press 'q' or ESC to quit.")
+
+recognized_once = False
 
 while True:
     ret, frame = cap.read()
@@ -27,38 +31,50 @@ while True:
         continue
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 
-    for (x,y,w,h) in faces:
-        face_img = gray[y:y+h, x:x+w]
-        face_small = cv2.resize(face_img, (100,100)).flatten()
-        pred = model.predict([face_small])[0]
-        dist, _ = model.kneighbors([face_small], n_neighbors=1)
-        label = f"Known ✅ ({pred})" if dist[0][0] < 5000 else "Unknown ❌"  # threshold
+    # Take central region (assume face is there)
+    h, w = gray.shape
+    cx, cy = w//2, h//2
+    size = 200
+    x1, y1 = max(cx - size//2,0), max(cy - size//2,0)
+    x2, y2 = min(cx + size//2, w), min(cy + size//2, h)
+    face_roi = gray[y1:y2, x1:x2]
+    face_small = cv2.resize(face_roi, (100,100))
 
-        if "Known" in label:
-            attendance[pred] = "Present"
+    # Compare with dataset
+    min_mse = float('inf')
+    best_match = None
+    for student_id, student_img in students.items():
+        mse = np.mean((face_small - student_img)**2)
+        if mse < min_mse:
+            min_mse = mse
+            best_match = student_id
 
-        # Draw rectangle and label
-        color = (0,255,0) if "Known" in label else (0,0,255)
-        cv2.rectangle(frame, (x,y), (x+w,y+h), color, 2)
-        cv2.putText(frame, label, (x, y-10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+    # Threshold for recognition
+    if min_mse < 500:
+        label = f"Known ✅ ({best_match})"
+    else:
+        label = "Unknown ❌"
 
-    cv2.imshow("Attendance System", frame)
+    # Display on webcam frame
+    cv2.putText(frame, label, (50,50),
+                cv2.FONT_HERSHEY_SIMPLEX, 1,
+                (0,255,0) if "Known" in label else (0,0,255), 2)
+    cv2.rectangle(frame, (x1,y1), (x2,y2), (255,0,0), 2)
+    cv2.imshow("Hackathon Attendance Demo", frame)
 
+    # Print only once per person
+    if not recognized_once:
+        print(label)
+        recognized_once = True
+        # Pause 3 seconds so faculty can see result
+        cv2.waitKey(3000)  
+
+    # Exit on key press
     key = cv2.waitKey(1)
-    if key & 0xFF == ord('q'):
-        break
-
-# Save attendance CSV
-all_students = dataset_ids
-df = pd.DataFrame({
-    "Name": all_students,
-    "Status": ["Present" if s in attendance else "Absent" for s in all_students]
-})
-df.to_csv("attendance.csv", index=False)
-print("Attendance saved to 'attendance.csv'.")
+    if key != -1:
+        if key & 0xFF == ord('q') or key == 27:
+            break
 
 cap.release()
 cv2.destroyAllWindows()
